@@ -20,19 +20,11 @@ export default class MVTPainter {
         return fetch(url)
             .then(rawData => rawData.arrayBuffer())
             .then(response => {
-                let geometries = [];
                 if (response.byteLength == 0 || response == 'null') {
                     return { empty: true };
                 }
                 var tile = new VectorTile(new Protobuf(response));
-                Object.keys(tile.layers).forEach(function(key) {
-                    const layer = tile.layers[key];
-                    for (let index = 0; index < layer._features.length; index++) {
-                        const feature = layer.feature(index);
-                        geometries.push(feature.loadGeometry());
-                    }
-                });
-                return geometries;
+                return tile.layers;
             });
     }
 
@@ -81,13 +73,16 @@ export default class MVTPainter {
     }
 
     _drawLineAllAtOnce(points, minWidthAndHeight, speed, arrow, ctx) {
+        ctx.fillStyle = 'red';
+        ctx.globalAlpha = 0.2;
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
             ctx.lineTo(points[i].x, points[i].y);
         }
-        ctx.stroke();
         ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
     }
 
     stopAnimation(index) {
@@ -152,19 +147,13 @@ export default class MVTPainter {
         return {x: minX, y: minY};
     }
 
-    drawGeometry(geometries, index, speed, arrow, ctx, raf) {
-        const geometry = geometries[index] ;
+    drawGeometry(geometry, speed, arrow, ctx, raf) {
         const that = this;
         const minWidthAndHeight = this._getMinWidthAndHeight(geometry);
-        this._animationRunning[index] = true;
         geometry.forEach(points => {
             const translatedPoints = this._translatePoints(points, minWidthAndHeight);
             raf(function() {
-                if (speed === 0) {
-                    that._drawLineAllAtOnce(translatedPoints, minWidthAndHeight, speed, arrow, ctx);
-                } else {
-                    that._drawLine(index, 1, translatedPoints, minWidthAndHeight, speed, arrow, ctx,raf);
-                }
+                that._drawLineAllAtOnce(translatedPoints, minWidthAndHeight, speed, arrow, ctx);
             });
         });
     }

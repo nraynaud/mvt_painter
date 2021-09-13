@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SVG tile rendering</title>
+    <script src='../dist/mvt-painter.js'></script>
+    <style>
+        body {
+            padding: 0;
+        }
+
+        polygon {
+            stroke-width: 0.1;
+            stroke: black;
+            fill: lightgreen;
+            fill-opacity: 20%;
+        }
+
+        .sea {
+            stroke: blue;
+            stroke-width: 0.1;
+            fill: lightblue;
+        }
+
+    </style>
+</head>
+<body>
+<div class="controls">
+        <span>
+            <label for="url">Tile URL</label>
+            <input type="text" size="60" id="url" value="http://localhost:8585/freddie/tiles-vector/6/59/16"/>
+            <button id="loadTile">Load tile</button>
+        </span>
+    <span class="geometries">
+            <label for="geometries">Select geometry to draw</label>
+            <select id="geometries">
+                <option value="-1">No geometries loaded</option>
+            </select>
+        </span>
+</div>
+<svg id="svg" viewBox="0 0 4096 4096" width="2048" height="2048">
+    <g id="polygones">
+    </g>
+</svg>
+<script>
+    const svg = document.getElementById('svg');
+    const polylinesGroup = document.getElementById('polygones');
+
+    const buttonLoadTile = document.getElementById('loadTile');
+    buttonLoadTile.addEventListener('click', loadTile);
+    const url = document.getElementById('url');
+
+    const geomSelector = document.getElementById('geometries');
+    geomSelector.addEventListener('change', paintGeometry);
+
+    let layers = {};
+
+    painter = new carto.MVTPainter(url.getAtt);
+
+    function loadTile () {
+        painter.loadTile(url.value).then(ls => {
+            console.log('GS', ls);
+            layers = ls;
+            geomSelector.innerHTML = '';
+            const option = document.createElement('option');
+            option.text = 'Select layer to draw';
+            option.value = '-1';
+            geomSelector.appendChild(option);
+            Object.keys(ls).forEach((name) => {
+                const option = document.createElement('option');
+                option.text = 'Layer # ' + name;
+                option.value = name;
+                geomSelector.appendChild(option);
+            });
+        });
+    }
+
+    const xmlns = 'http://www.w3.org/2000/svg';
+
+    function paintGeometry () {
+        const selectedIndex = geomSelector.options[geomSelector.selectedIndex].value;
+        if (selectedIndex !== '-1') {
+            polylinesGroup.textContent = '';
+            let layer = layers[selectedIndex];
+            for (let i = 0; i < layer._features.length; i++) {
+                const feature = layer.feature(i);
+                const geometry = feature.loadGeometry();
+                geometry.forEach(points => {
+                    const polygon = document.createElementNS(xmlns, 'polygon');
+                    polygon.classList.add(selectedIndex);
+                    points.forEach(point => {
+                        const svgPoint = svg.createSVGPoint();
+                        svgPoint.x = point.x;
+                        svgPoint.y = point.y;
+                        polygon.points.appendItem(svgPoint);
+                    });
+                    polylinesGroup.appendChild(polygon);
+                });
+            }
+        }
+    }
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@
     <div class="controls">
         <span>
             <label for="url">Tile URL</label>
-            <input type="text" size="60" id="url" />
+            <input type="text" size="60" id="url" value="http://localhost:8585/freddie/tiles-vector/6/59/16"/>
             <button id="loadTile">Load tile</button>
         </span>
         <span class="geometries">
@@ -42,31 +42,33 @@
     </div>
     <canvas id="grid" />
 <script>
-    var bw = 1900;
-    var bh = 900;
+    var bw = 4096;
+    var bh = 4096;
     var canvas = document.getElementById("grid");
     var url = document.getElementById('url');
     var buttonLoadTile = document.getElementById('loadTile');
     buttonLoadTile.addEventListener('click', loadTile);
     var geomSelector = document.getElementById('geometries');
     geomSelector.addEventListener('change', paintGeometry);
-    var geometries = [];
+    var layers = {};
     var previousIndex = null;
     canvas.setAttribute('height', bh)
     canvas.setAttribute('width', bw);
+    canvas.getContext('2d')
     painter = new carto.MVTPainter(url.getAtt)
     function loadTile() {
-        painter.loadTile(url.value).then(gs => {
-            geometries = gs
+        painter.loadTile(url.value).then(ls => {
+            console.log('GS', ls);
+            layers = ls;
             geomSelector.innerHTML = '';
-            var option = document.createElement("option");
-            option.text = 'Select geometry to draw';
-            option.value = "-1";
+            var option = document.createElement('option');
+            option.text = 'Select layer to draw';
+            option.value = '-1';
             geomSelector.appendChild(option);
-            geometries.forEach((geometry,index) => {
-                var option = document.createElement("option");
-                option.text = 'Geometry # '+index+' ('+geometry.length+' lines)';
-                option.value = index;
+            Object.keys(ls).forEach((name, index) => {
+                var option = document.createElement('option');
+                option.text = 'Layer # ' + name;
+                option.value = name;
                 geomSelector.appendChild(option);
             });
         });
@@ -77,13 +79,20 @@
         if (selectedIndex !== "-1") {
             var speed = document.getElementById('speed').value;
             var arrow = document.getElementById('arrowhead').checked;
-            var context = canvas.getContext("2d");
+            var context = canvas.getContext('2d');
             if (previousIndex !== null) {
                 painter.stopAnimation(previousIndex);
             }
             previousIndex = selectedIndex;
-            context.clearRect(0,0, bw, bh);
-            painter.drawGeometry(geometries, selectedIndex, +speed, arrow, context, window.requestAnimationFrame);
+            context.clearRect(0, 0, bw, bh);
+            let layer = layers[selectedIndex];
+            for (let i = 0; i < layer._features.length; i++) {
+                const feature = layer.feature(i);
+                const geometry = feature.loadGeometry();
+                geometry.forEach(points => {
+                    painter._drawLineAllAtOnce(points, null, speed, arrow, context);
+                });
+            }
         }
     }
 </script>
